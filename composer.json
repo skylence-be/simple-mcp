@@ -1,0 +1,70 @@
+{
+    "name": "skylence/simple-mcp",
+    "description": "A simple MCP (Model Context Protocol) server package for Laravel - Easy to extend with custom tools and JSON-RPC 2.0 compliant",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "mcp",
+        "model-context-protocol",
+        "json-rpc",
+        "ai",
+        "claude",
+        "cursor",
+        "tools",
+        "api"
+    ],
+    "homepage": "https://github.com/skylence-be/simple-mcp",
+    "authors": [
+        {
+            "name": "Jonas",
+            "email": "jonas@skylence.be",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/skylence-be/simple-mcp/issues",
+        "source": "https://github.com/skylence-be/simple-mcp"
+    },
+    "require": {
+        "php": "^8.1|^8.2|^8.3|^8.4",
+        "laravel/framework": "^10.0|^11.0|^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0",
+        "phpunit/phpunit": "^10.0|^11.0",
+        "phpstan/phpstan": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Skylence\\SimpleMcp\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Skylence\\SimpleMcp\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Skylence\\SimpleMcp\\SimpleMcpServiceProvider"
+            ],
+            "aliases": {
+                "SimpleMcp": "Skylence\\SimpleMcp\\Facades\\SimpleMcp"
+            }
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage",
+        "analyse": "vendor/bin/phpstan analyse"
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "preferred-install": "dist"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
