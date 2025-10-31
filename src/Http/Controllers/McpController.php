@@ -152,7 +152,7 @@ final class McpController extends Controller
         try {
             $result = match ($method) {
                 'initialize', 'mcp.manifest', 'mcp.getManifest' => $this->getManifestResponse(),
-                'tools/list' => ['tools' => array_values($this->server->getTools())],
+                'tools/list' => ['tools' => $this->server->getTools()],
                 'tools/call' => $this->callToolViaJsonRpc($params, $id),
                 default => throw new \Exception("Method not found: {$method}"),
             };

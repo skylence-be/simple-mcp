@@ -51,31 +51,30 @@ final class SimpleMcpServer
             'name' => 'simple-mcp',
             'version' => '1.0.0',
             'description' => 'A simple MCP server for Laravel',
-            'tools' => $this->getToolsAsObject(),
-            'resources' => $this->getResources(),
-            'prompts' => $this->getPrompts(),
+            'tools' => $this->getToolsAsArray(),
+            'resources' => $this->getResourcesAsArray(),
+            'prompts' => $this->getPromptsAsArray(),
             'metadata' => $this->getMetadata(),
         ];
     }
 
     /**
-     * Get all registered tools schemas as an object (keyed by tool name).
+     * Get all registered tools schemas.
      */
     public function getTools(): array
     {
-        return $this->getToolsAsObject();
+        return $this->getToolsAsArray();
     }
 
     /**
-     * Get tools as an object keyed by tool name.
+     * Get tools as an array (for MCP protocol).
      */
-    private function getToolsAsObject(): array
+    private function getToolsAsArray(): array
     {
         $tools = [];
         foreach ($this->tools as $tool) {
             $schema = $tool->getSchema();
-            // Transform 'inputSchema' to match MCP protocol format
-            $tools[$tool->getShortName()] = [
+            $tools[] = [
                 'name' => $schema['name'],
                 'description' => $schema['description'],
                 'inputSchema' => $schema['inputSchema'] ?? [
@@ -90,12 +89,12 @@ final class SimpleMcpServer
     }
 
     /**
-     * Get available resources.
+     * Get available resources as an array (for MCP protocol).
      */
-    private function getResources(): array
+    private function getResourcesAsArray(): array
     {
         return [
-            'simple-mcp://status' => [
+            [
                 'uri' => 'simple-mcp://status',
                 'name' => 'Server Status',
                 'description' => 'Current status and health of the Simple MCP server',
@@ -105,12 +104,12 @@ final class SimpleMcpServer
     }
 
     /**
-     * Get available prompts.
+     * Get available prompts as an array (for MCP protocol).
      */
-    private function getPrompts(): array
+    private function getPromptsAsArray(): array
     {
         return [
-            'test-server' => [
+            [
                 'name' => 'test-server',
                 'description' => 'Test the Simple MCP server with ping and echo',
                 'arguments' => [],
