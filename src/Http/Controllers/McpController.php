@@ -222,10 +222,7 @@ final class McpController extends Controller
             ],
             'capabilities' => [
                 'tools' => (object) $manifest['tools'],
-                'resources' => (object) $manifest['resources'],
-                'prompts' => (object) $manifest['prompts'],
             ],
-            'metadata' => $manifest['metadata'],
         ];
     }
 
