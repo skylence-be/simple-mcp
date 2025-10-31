@@ -59,15 +59,37 @@ final class SimpleMcpServer
     }
 
     /**
-     * Get all registered tools schemas.
+     * Get all registered tools schemas as array (for tools/list JSON-RPC method).
      */
     public function getTools(): array
     {
-        return $this->getToolsAsObject();
+        return $this->getToolsAsArray();
     }
 
     /**
-     * Get tools as an object keyed by tool name (for MCP protocol).
+     * Get tools as an array (for tools/list JSON-RPC method).
+     */
+    private function getToolsAsArray(): array
+    {
+        $tools = [];
+        foreach ($this->tools as $tool) {
+            $schema = $tool->getSchema();
+            $tools[] = [
+                'name' => $schema['name'],
+                'description' => $schema['description'],
+                'inputSchema' => $schema['inputSchema'] ?? [
+                    'type' => 'object',
+                    'properties' => [],
+                    'required' => [],
+                ],
+            ];
+        }
+
+        return $tools;
+    }
+
+    /**
+     * Get tools as an object keyed by tool name (for manifest capabilities).
      */
     private function getToolsAsObject(): array
     {
