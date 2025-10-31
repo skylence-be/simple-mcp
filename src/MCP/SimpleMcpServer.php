@@ -73,7 +73,17 @@ final class SimpleMcpServer
     {
         $tools = [];
         foreach ($this->tools as $tool) {
-            $tools[$tool->getShortName()] = $tool->getSchema();
+            $schema = $tool->getSchema();
+            // Transform 'inputSchema' to match MCP protocol format
+            $tools[$tool->getShortName()] = [
+                'name' => $schema['name'],
+                'description' => $schema['description'],
+                'inputSchema' => $schema['inputSchema'] ?? [
+                    'type' => 'object',
+                    'properties' => [],
+                    'required' => [],
+                ],
+            ];
         }
 
         return $tools;
