@@ -22,7 +22,7 @@ abstract class AbstractTool
     /**
      * Get the tool's schema definition.
      *
-     * @return array{name: string, description: string, parameters: array}
+     * @return array{name: string, description: string, inputSchema: array}
      */
     abstract public function getSchema(): array;
 

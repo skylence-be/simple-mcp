@@ -22,7 +22,7 @@ final class EchoTool extends AbstractTool
         return [
             'name' => $this->getName(),
             'description' => 'Echo back any message you send',
-            'parameters' => [
+            'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
                     'message' => [

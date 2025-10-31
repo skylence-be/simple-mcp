@@ -22,7 +22,7 @@ final class PingTool extends AbstractTool
         return [
             'name' => $this->getName(),
             'description' => 'Simple ping tool to check if the MCP server is responding',
-            'parameters' => [
+            'inputSchema' => [
                 'type' => 'object',
                 'properties' => [],
                 'required' => [],
