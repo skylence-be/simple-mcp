@@ -40,7 +40,7 @@ final class McpController extends Controller
                 'content_type' => $request->header('Content-Type'),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Parse error: Content-Type must be application/json',
                     JsonRpcResponse::PARSE_ERROR,
@@ -55,7 +55,7 @@ final class McpController extends Controller
         if (empty($rawContent)) {
             $this->logger->warning('MCP request: Empty JSON body');
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Invalid Request: Empty JSON body',
                     JsonRpcResponse::INVALID_REQUEST,
@@ -72,7 +72,7 @@ final class McpController extends Controller
                 'json_error' => json_last_error_msg(),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Parse error: Invalid JSON in request body. Error: '.json_last_error_msg(),
                     JsonRpcResponse::PARSE_ERROR,
@@ -88,7 +88,7 @@ final class McpController extends Controller
                 'decoded_type' => gettype($decoded),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Invalid Request: JSON body must be an object',
                     JsonRpcResponse::INVALID_REQUEST,
@@ -109,7 +109,7 @@ final class McpController extends Controller
                 'version_received' => $jsonrpc,
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     "Invalid JSON-RPC version. Must be '2.0'",
                     JsonRpcResponse::INVALID_REQUEST,
@@ -125,7 +125,7 @@ final class McpController extends Controller
                 'method_received' => $method,
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Invalid Request: Method is missing or not a string',
                     JsonRpcResponse::INVALID_REQUEST,
@@ -161,17 +161,17 @@ final class McpController extends Controller
 
             // For tools/call, the result is already a complete JSON-RPC response
             if ($method === 'tools/call' && is_array($result) && isset($result['jsonrpc'])) {
-                return response()->json($result);
+                return new JsonResponse($result);
             }
 
-            return response()->json(JsonRpcResponse::success($result, $id));
+            return new JsonResponse(JsonRpcResponse::success($result, $id));
         } catch (\Exception $e) {
             $this->logger->error('MCP request failed', [
                 'method' => $method,
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error($e->getMessage(), JsonRpcResponse::INTERNAL_ERROR, $id)
             );
         }
@@ -189,7 +189,7 @@ final class McpController extends Controller
 
         // Handle GET requests for manifest
         if ($request->method() === 'GET') {
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::success($this->buildManifestResponse())
             );
         }
@@ -319,7 +319,7 @@ final class McpController extends Controller
                 'content_type' => $request->header('Content-Type'),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Parse error: Content-Type must be application/json',
                     JsonRpcResponse::PARSE_ERROR,
@@ -334,7 +334,7 @@ final class McpController extends Controller
         if (empty($rawContent)) {
             $this->logger->warning('executeToolCall: Empty JSON body');
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Invalid Request: Empty JSON body',
                     JsonRpcResponse::INVALID_REQUEST,
@@ -351,7 +351,7 @@ final class McpController extends Controller
                 'json_error' => json_last_error_msg(),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Parse error: Invalid JSON in request body. Error: '.json_last_error_msg(),
                     JsonRpcResponse::PARSE_ERROR,
@@ -367,7 +367,7 @@ final class McpController extends Controller
                 'decoded_type' => gettype($decoded),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Invalid Request: JSON body must be an object',
                     JsonRpcResponse::INVALID_REQUEST,
@@ -387,7 +387,7 @@ final class McpController extends Controller
                 'version_received' => $jsonrpc,
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     "Invalid JSON-RPC version. Must be '2.0'",
                     JsonRpcResponse::INVALID_REQUEST,
@@ -403,7 +403,7 @@ final class McpController extends Controller
                 'params_received' => $params,
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Invalid params: Must be an object',
                     JsonRpcResponse::INVALID_PARAMS,
@@ -422,7 +422,7 @@ final class McpController extends Controller
                 'tool_name_received' => $toolName,
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Invalid params: tool name is required and must be a string',
                     JsonRpcResponse::INVALID_PARAMS,
@@ -438,7 +438,7 @@ final class McpController extends Controller
                 'arguments_type' => gettype($arguments),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     'Invalid params: arguments must be an array or object',
                     JsonRpcResponse::INVALID_PARAMS,
@@ -455,14 +455,14 @@ final class McpController extends Controller
         try {
             $result = $this->callTool($params);
 
-            return response()->json(JsonRpcResponse::mcpToolResponse($result, $id));
+            return new JsonResponse(JsonRpcResponse::mcpToolResponse($result, $id));
         } catch (\Exception $e) {
             $this->logger->error('executeToolCall: Tool execution error', [
                 'tool' => $toolName,
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json(
+            return new JsonResponse(
                 JsonRpcResponse::error(
                     $e->getMessage(),
                     JsonRpcResponse::INTERNAL_ERROR,
@@ -492,7 +492,7 @@ final class McpController extends Controller
                     'content_type' => $request->header('Content-Type'),
                 ]);
 
-                return response()->json([
+                return new JsonResponse([
                     'content' => [
                         [
                             'type' => 'error',
@@ -525,7 +525,7 @@ final class McpController extends Controller
                 'tool' => $tool,
             ]);
 
-            return response()->json($response);
+            return new JsonResponse($response);
         } catch (\Exception $e) {
             $this->logger->error('Tool execution failed', [
                 'tool' => $tool,
@@ -533,7 +533,7 @@ final class McpController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json([
+            return new JsonResponse([
                 'content' => [
                     [
                         'type' => 'error',
