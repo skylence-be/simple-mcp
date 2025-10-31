@@ -28,20 +28,119 @@ final class McpController extends Controller
     public function handle(Request $request): JsonResponse
     {
         $this->logger->info('MCP request received', [
-            'method' => $request->input('method'),
-            'params' => $request->input('params'),
+            'method' => $request->method(),
+            'uri' => $request->fullUrl(),
+            'input_all' => $request->all(),
+            'content_type' => $request->header('Content-Type'),
         ]);
 
-        // Validate JSON-RPC 2.0 format
-        if (! $request->has('jsonrpc') || $request->input('jsonrpc') !== '2.0') {
+        // Validate Content-Type for POST requests
+        if (! $request->isJson()) {
+            $this->logger->warning('MCP request: Content-Type is not JSON', [
+                'content_type' => $request->header('Content-Type'),
+            ]);
+
             return response()->json(
-                JsonRpcResponse::invalidRequest($request->input('id'))
+                JsonRpcResponse::error(
+                    'Parse error: Content-Type must be application/json',
+                    JsonRpcResponse::PARSE_ERROR,
+                    null
+                ),
+                400
             );
         }
 
-        $method = $request->input('method');
-        $params = $request->input('params', []);
-        $id = $request->input('id');
+        // Validate non-empty body
+        $rawContent = $request->getContent();
+        if (empty($rawContent)) {
+            $this->logger->warning('MCP request: Empty JSON body');
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Invalid Request: Empty JSON body',
+                    JsonRpcResponse::INVALID_REQUEST,
+                    null
+                ),
+                400
+            );
+        }
+
+        // Validate JSON parsing
+        $decoded = json_decode($rawContent, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->logger->warning('MCP request: JSON parse error', [
+                'json_error' => json_last_error_msg(),
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Parse error: Invalid JSON in request body. Error: '.json_last_error_msg(),
+                    JsonRpcResponse::PARSE_ERROR,
+                    null
+                ),
+                400
+            );
+        }
+
+        // Validate decoded type
+        if (! is_array($decoded)) {
+            $this->logger->warning('MCP request: Decoded JSON is not an array/object', [
+                'decoded_type' => gettype($decoded),
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Invalid Request: JSON body must be an object',
+                    JsonRpcResponse::INVALID_REQUEST,
+                    null
+                ),
+                400
+            );
+        }
+
+        $jsonrpc = $decoded['jsonrpc'] ?? null;
+        $id = $decoded['id'] ?? null;
+        $method = $decoded['method'] ?? null;
+        $params = $decoded['params'] ?? [];
+
+        // Validate JSON-RPC version
+        if ($jsonrpc !== '2.0') {
+            $this->logger->warning('MCP request: Invalid JSON-RPC version', [
+                'version_received' => $jsonrpc,
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    "Invalid JSON-RPC version. Must be '2.0'",
+                    JsonRpcResponse::INVALID_REQUEST,
+                    $id
+                ),
+                400
+            );
+        }
+
+        // Validate method
+        if (empty($method) || ! is_string($method)) {
+            $this->logger->warning('MCP request: Missing or invalid method', [
+                'method_received' => $method,
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Invalid Request: Method is missing or not a string',
+                    JsonRpcResponse::INVALID_REQUEST,
+                    $id
+                ),
+                400
+            );
+        }
+
+        $this->logger->info('JSON-RPC request processing', [
+            'jsonrpc_version' => $jsonrpc,
+            'id' => $id,
+            'method' => $method,
+            'params_type' => gettype($params),
+        ]);
 
         // Handle notifications (no response expected)
         if ($method === 'notifications/initialized' && is_null($id)) {
@@ -134,17 +233,32 @@ final class McpController extends Controller
             $params = $params->all();
         }
 
+        // Validate params is an array
+        if (! is_array($params)) {
+            throw new \InvalidArgumentException('Invalid params: Must be an object');
+        }
+
         $toolName = $params['name'] ?? null;
         $arguments = $params['arguments'] ?? [];
 
-        if (! $toolName) {
-            throw new \InvalidArgumentException('Tool name is required');
+        // Validate tool name
+        if (! $toolName || ! is_string($toolName)) {
+            throw new \InvalidArgumentException('Invalid params: tool name is required and must be a string');
+        }
+
+        // Validate arguments
+        if (! is_array($arguments) && ! is_object($arguments)) {
+            throw new \InvalidArgumentException('Invalid params: arguments must be an array or object');
         }
 
         // Extract short name from full name if needed
         $toolName = str_replace('mcp__simple-mcp__', '', $toolName);
 
-        return $this->server->executeTool($toolName, $arguments);
+        $this->logger->info('Executing tool via JSON-RPC', [
+            'tool_name' => $toolName,
+        ]);
+
+        return $this->server->executeTool($toolName, (array) $arguments);
     }
 
     /**
@@ -153,14 +267,68 @@ final class McpController extends Controller
     public function executeTool(Request $request, string $tool): JsonResponse
     {
         try {
+            $this->logger->info('MCP tool execution request', [
+                'tool' => $tool,
+                'method' => $request->method(),
+                'input' => $request->all(),
+            ]);
+
+            // Validate request is JSON for POST requests
+            if ($request->method() === 'POST' && ! $request->isJson()) {
+                $this->logger->warning('Invalid request format - not JSON', [
+                    'tool' => $tool,
+                    'content_type' => $request->header('Content-Type'),
+                ]);
+
+                return response()->json([
+                    'content' => [
+                        [
+                            'type' => 'error',
+                            'text' => 'Parse error: Content-Type must be application/json',
+                        ],
+                    ],
+                ], 400);
+            }
+
             $params = $request->all();
+
+            $this->logger->debug('Executing tool', [
+                'tool' => $tool,
+                'params' => $params,
+            ]);
+
             $result = $this->server->executeTool($tool, $params);
 
-            return response()->json($result);
+            // Format response in MCP standard format
+            $response = [
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'text' => json_encode($result),
+                    ],
+                ],
+            ];
+
+            $this->logger->info('Tool execution successful', [
+                'tool' => $tool,
+            ]);
+
+            return response()->json($response);
         } catch (\Exception $e) {
-            return response()->json([
+            $this->logger->error('Tool execution failed', [
+                'tool' => $tool,
                 'error' => $e->getMessage(),
-            ], 400);
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'content' => [
+                    [
+                        'type' => 'error',
+                        'text' => $e->getMessage(),
+                    ],
+                ],
+            ], 500);
         }
     }
 }
