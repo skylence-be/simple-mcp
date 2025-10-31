@@ -20,7 +20,7 @@ final class PingTool extends AbstractTool
     public function getSchema(): array
     {
         return [
-            'name' => $this->getName(),
+            'name' => $this->getShortName(),
             'description' => 'Simple ping tool to check if the MCP server is responding',
             'inputSchema' => [
                 'type' => 'object',

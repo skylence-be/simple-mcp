@@ -20,7 +20,7 @@ final class EchoTool extends AbstractTool
     public function getSchema(): array
     {
         return [
-            'name' => $this->getName(),
+            'name' => $this->getShortName(),
             'description' => 'Echo back any message you send',
             'inputSchema' => [
                 'type' => 'object',
