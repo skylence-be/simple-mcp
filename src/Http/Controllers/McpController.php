@@ -146,7 +146,7 @@ final class McpController extends Controller
         if ($method === 'notifications/initialized' && is_null($id)) {
             $this->logger->info('MCP notification: Client initialized');
 
-            return response()->json(null, 204);
+            return new JsonResponse(null, 204);
         }
 
         try {
