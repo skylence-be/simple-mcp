@@ -262,6 +262,185 @@ final class McpController extends Controller
     }
 
     /**
+     * Execute a tool call via JSON-RPC (tools/call endpoint).
+     */
+    public function executeToolCall(Request $request): JsonResponse
+    {
+        $this->logger->info('MCP executeToolCall received', [
+            'method' => $request->method(),
+            'uri' => $request->fullUrl(),
+            'input_all' => $request->all(),
+            'content_type' => $request->header('Content-Type'),
+        ]);
+
+        // Validate Content-Type
+        if (! $request->isJson()) {
+            $this->logger->warning('executeToolCall: Content-Type is not JSON', [
+                'content_type' => $request->header('Content-Type'),
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Parse error: Content-Type must be application/json',
+                    JsonRpcResponse::PARSE_ERROR,
+                    null
+                ),
+                400
+            );
+        }
+
+        // Validate non-empty body
+        $rawContent = $request->getContent();
+        if (empty($rawContent)) {
+            $this->logger->warning('executeToolCall: Empty JSON body');
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Invalid Request: Empty JSON body',
+                    JsonRpcResponse::INVALID_REQUEST,
+                    null
+                ),
+                400
+            );
+        }
+
+        // Parse JSON
+        $decoded = json_decode($rawContent, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->logger->warning('executeToolCall: JSON parse error', [
+                'json_error' => json_last_error_msg(),
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Parse error: Invalid JSON in request body. Error: '.json_last_error_msg(),
+                    JsonRpcResponse::PARSE_ERROR,
+                    null
+                ),
+                400
+            );
+        }
+
+        // Validate decoded type
+        if (! is_array($decoded)) {
+            $this->logger->warning('executeToolCall: Decoded JSON is not an array/object', [
+                'decoded_type' => gettype($decoded),
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Invalid Request: JSON body must be an object',
+                    JsonRpcResponse::INVALID_REQUEST,
+                    null
+                ),
+                400
+            );
+        }
+
+        $jsonrpc = $decoded['jsonrpc'] ?? null;
+        $id = $decoded['id'] ?? null;
+        $params = $decoded['params'] ?? [];
+
+        // Validate JSON-RPC version
+        if ($jsonrpc !== '2.0') {
+            $this->logger->warning('executeToolCall: Invalid JSON-RPC version', [
+                'version_received' => $jsonrpc,
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    "Invalid JSON-RPC version. Must be '2.0'",
+                    JsonRpcResponse::INVALID_REQUEST,
+                    $id
+                ),
+                400
+            );
+        }
+
+        // Validate params
+        if (! is_array($params)) {
+            $this->logger->warning('MCP executeToolCall: params is not an object/array', [
+                'params_received' => $params,
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Invalid params: Must be an object',
+                    JsonRpcResponse::INVALID_PARAMS,
+                    $id
+                ),
+                400
+            );
+        }
+
+        $toolName = $params['name'] ?? null;
+        $arguments = $params['arguments'] ?? [];
+
+        // Validate tool name
+        if (! $toolName || ! is_string($toolName)) {
+            $this->logger->warning('executeToolCall: Missing or invalid tool name', [
+                'tool_name_received' => $toolName,
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Invalid params: tool name is required and must be a string',
+                    JsonRpcResponse::INVALID_PARAMS,
+                    $id
+                ),
+                400
+            );
+        }
+
+        // Validate arguments
+        if (! is_array($arguments) && ! is_object($arguments)) {
+            $this->logger->warning('MCP executeToolCall: Invalid arguments type', [
+                'arguments_type' => gettype($arguments),
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    'Invalid params: arguments must be an array or object',
+                    JsonRpcResponse::INVALID_PARAMS,
+                    $id
+                ),
+                400
+            );
+        }
+
+        $this->logger->info('Executing tool via executeToolCall', [
+            'tool_name' => $toolName,
+        ]);
+
+        try {
+            $result = $this->callTool($params);
+
+            return response()->json(JsonRpcResponse::success([
+                'content' => [
+                    [
+                        'type' => 'text',
+                        'text' => json_encode($result),
+                    ],
+                ],
+            ], $id));
+        } catch (\Exception $e) {
+            $this->logger->error('executeToolCall: Tool execution error', [
+                'tool' => $toolName,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(
+                JsonRpcResponse::error(
+                    $e->getMessage(),
+                    JsonRpcResponse::INTERNAL_ERROR,
+                    $id
+                ),
+                500
+            );
+        }
+    }
+
+    /**
      * Execute a specific tool directly.
      */
     public function executeTool(Request $request, string $tool): JsonResponse
