@@ -24,7 +24,7 @@ final class PingTool extends AbstractTool
             'description' => 'Simple ping tool to check if the MCP server is responding',
             'inputSchema' => [
                 'type' => 'object',
-                'properties' => [],
+                'properties' => (object) [],
                 'required' => [],
             ],
         ];
