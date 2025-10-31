@@ -153,11 +153,16 @@ final class McpController extends Controller
             $result = match ($method) {
                 'initialize', 'mcp.manifest', 'mcp.getManifest' => $this->getManifestResponse(),
                 'tools/list' => ['tools' => array_values($this->server->getTools())],
-                'tools/call' => $this->callTool($params),
+                'tools/call' => $this->callToolViaJsonRpc($params, $id),
                 default => throw new \Exception("Method not found: {$method}"),
             };
 
             $this->logger->info('MCP request completed', ['method' => $method]);
+
+            // For tools/call, the result is already a complete JSON-RPC response
+            if ($method === 'tools/call' && is_array($result) && isset($result['jsonrpc'])) {
+                return response()->json($result);
+            }
 
             return response()->json(JsonRpcResponse::success($result, $id));
         } catch (\Exception $e) {
@@ -222,6 +227,41 @@ final class McpController extends Controller
             ],
             'metadata' => $manifest['metadata'],
         ];
+    }
+
+    /**
+     * Call a tool via JSON-RPC and return formatted MCP response.
+     */
+    private function callToolViaJsonRpc(array $params, string|int|null $id): array
+    {
+        // Validate params is an array
+        if (! is_array($params)) {
+            throw new \InvalidArgumentException('Invalid params: Must be an object');
+        }
+
+        $toolName = $params['name'] ?? null;
+        $arguments = $params['arguments'] ?? [];
+
+        // Validate tool name
+        if (! $toolName || ! is_string($toolName)) {
+            throw new \InvalidArgumentException('Invalid params: tool name is required and must be a string');
+        }
+
+        // Validate arguments
+        if (! is_array($arguments) && ! is_object($arguments)) {
+            throw new \InvalidArgumentException('Invalid params: arguments must be an array or object');
+        }
+
+        // Extract short name from full name if needed
+        $toolName = str_replace('mcp__simple-mcp__', '', $toolName);
+
+        $this->logger->info('Executing tool via JSON-RPC', [
+            'tool_name' => $toolName,
+        ]);
+
+        $result = $this->server->executeTool($toolName, (array) $arguments);
+
+        return JsonRpcResponse::mcpToolResponse($result, $id);
     }
 
     /**
@@ -415,14 +455,7 @@ final class McpController extends Controller
         try {
             $result = $this->callTool($params);
 
-            return response()->json(JsonRpcResponse::success([
-                'content' => [
-                    [
-                        'type' => 'text',
-                        'text' => json_encode($result),
-                    ],
-                ],
-            ], $id));
+            return response()->json(JsonRpcResponse::mcpToolResponse($result, $id));
         } catch (\Exception $e) {
             $this->logger->error('executeToolCall: Tool execution error', [
                 'tool' => $toolName,

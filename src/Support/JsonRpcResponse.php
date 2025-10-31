@@ -77,4 +77,25 @@ final class JsonRpcResponse
     {
         return self::error('Invalid params', self::INVALID_PARAMS, $id);
     }
+
+    /**
+     * Formats content for MCP tools response.
+     */
+    public static function mcpToolResponse(mixed $content, string|int|null $id = null): array
+    {
+        // If content is already in the correct format, use it directly
+        if (is_array($content) && isset($content['content'])) {
+            return self::success($content, $id);
+        }
+
+        // Convert to the expected MCP format
+        return self::success([
+            'content' => [
+                [
+                    'type' => 'text',
+                    'text' => is_string($content) ? $content : json_encode($content, JSON_PRETTY_PRINT),
+                ],
+            ],
+        ], $id);
+    }
 }
